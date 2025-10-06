@@ -11,6 +11,8 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)"
 ]
 
+[tool.poetry.scripts]
+github-org-analyzer = "src.github_org_analyzer.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

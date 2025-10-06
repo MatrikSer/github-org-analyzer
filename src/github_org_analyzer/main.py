@@ -4,6 +4,8 @@ import sys
 from github_org_analyzer.api.github import GitHubAPIError, GitHubClient
 from github_org_analyzer.core.analyzer import Analyzer
 from github_org_analyzer.utils.parser import CLIParser
+import matplotlib.pyplot as plt
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +34,14 @@ def main():
         analyzer.calculate_statistics()
 
         top_authors = analyzer.get_top_authors()
-        logger.info(f"Топ {args.count} авторов по количеству коммитов:")
-        for author, value in top_authors.items():
-            logger.info(f"{author}: {value}")
+        data = pd.DataFrame({"Person": [author for author in top_authors.keys()],
+                             "Count commits": [count_commits for count_commits in top_authors.values()]})
+        plt.figure(figsize=(12,16))
+        plt.barh(data["Author"], data["Count commits"])
+        plt.xlabel("Commits")
+        plt.title("Commits of 100 authors")
+        plt.tight_layout()
+        plt.show()
 
     except GitHubAPIError as e:
         logger.error(f"Ошибка GitHub API: {e}")

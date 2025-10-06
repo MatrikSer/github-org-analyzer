@@ -1,7 +1,34 @@
 import concurrent.futures
+import logging
 import time
 
 import requests
+
+logger = logging.getLogger(__name__)
+
+
+class GitHubAPIError(Exception):
+    """Base exception for GitHub API errors."""
+
+    pass
+
+
+class RateLimitError(GitHubAPIError):
+    """Raised when API rate limit is exceeded."""
+
+    pass
+
+
+class NetworkError(GitHubAPIError):
+    """Raised when network or request errors occur."""
+
+    pass
+
+
+class InvalidResponseError(GitHubAPIError):
+    """Raised when GitHub returns invalid or unexpected response."""
+
+    pass
 
 
 class GitHubClient:
@@ -40,14 +67,21 @@ class GitHubClient:
             """
             variables = {"org": self.org, "cursor": cursor}
             result = self.execute_query(query, variables)
-            if "data" in result:
+            if (
+                "data" in result
+                and result["data"]
+                and "organization" in result["data"]
+                and result["data"]["organization"]
+            ):
                 repos_data = result["data"]["organization"]["repositories"]
                 self.repos.extend(repos_data["nodes"])
                 page_info = repos_data["pageInfo"]
                 has_next_page = page_info["hasNextPage"]
                 cursor = page_info["endCursor"]
             else:
-                raise Exception("Пришел корявый ответ(((")
+                raise InvalidResponseError(
+                    "Некорректный ответ от GitHub API для репозиториев"
+                )
 
     def get_commits(self):
         with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
@@ -58,8 +92,8 @@ class GitHubClient:
                 try:
                     repo_commits = future.result()
                     self.commits.extend(repo_commits)
-                except Exception as e:
-                    print(f"Ошибка при обработке репозитория: {e}!!!")
+                except (GitHubAPIError, Exception) as e:
+                    logger.error(f"Ошибка при обработке репозитория: {e}")
 
     def process_repo(self, repo):
         has_next_page = True
@@ -104,22 +138,22 @@ class GitHubClient:
 
             repo_data = result["data"]["repository"]
             if repo_data is None:
-                print("Нет доступа к репозиторию!!!")
+                logger.warning("Нет доступа к репозиторию")
                 break
 
             ref = repo_data.get("defaultBranchRef")
             if ref is None:
-                print("Нет доуступа к ветке!!!")
+                logger.warning("Нет доступа к ветке")
                 break
 
             target = ref.get("target")
             if target is None:
-                print("Нет доступа к содержимому ветки!!!")
+                logger.warning("Нет доступа к содержимому ветки")
                 break
 
             history_data = target.get("history")
             if history_data is None:
-                print("Нет доступа к истории коммитов!!!")
+                logger.warning("Нет доступа к истории коммитов")
                 break
 
             all_commits_repo.extend(history_data["nodes"])
@@ -141,16 +175,19 @@ class GitHubClient:
                 timeout=30,
             )
         except requests.exceptions.RequestException as e:
-            print(f"Сетевая ошибка {e}, траим через 5 сек...")
-            time.sleep(5)
+            raise NetworkError(f"Сетевая ошибка: {e}") from e
 
         remaining = response.headers.get("X-RateLimit-Remaining", "???")
-        if int(remaining) % 100 == 0:
-            print(f"Осталось {remaining} запросов...")
+        try:
+            if int(remaining) % 100 == 0:
+                logger.info(f"Осталось {remaining} запросов")
+        except ValueError:
+            logger.debug(f"Не удалось получить остаток запросов: {remaining}")
+
         if response.status_code == 403 and "rate limit" in response.text.lower():
-            raise Exception("Rate limit исчерпан!!!")
+            raise RateLimitError("Исчерпан лимит запросов к GitHub API")
 
         if response.status_code == 200:
             return response.json()
         else:
-            raise Exception(f"Опа, сломалось что-то... Ошибка: {response.status_code}")
+            raise GitHubAPIError(f"Ошибка HTTP {response.status_code}: {response.text}")

@@ -111,14 +111,12 @@ class GitHubClient:
                             hasNextPage
                             endCursor
                             }
-                            nodes{
+                        nodes{
                             message
                             author{
-                                user{
                                 email
-                                }
                             }
-                            }
+                        }
                         }
                         }
                     }
@@ -172,7 +170,7 @@ class GitHubClient:
                 "https://api.github.com/graphql",
                 json={"query": query, "variables": variables},
                 headers=self.headers,
-                timeout=30,
+                timeout=80,
             )
         except requests.exceptions.RequestException as e:
             raise NetworkError(f"Сетевая ошибка: {e}") from e

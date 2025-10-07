@@ -34,7 +34,10 @@ def main():
         analyzer.calculate_statistics()
 
         top_authors = analyzer.get_top_authors()
-        data = pd.DataFrame({"Person": [author for author in top_authors.keys()],
+        logger.info(f"Топ {len(top_authors)} авторов:")
+        for (author, count_commits) in top_authors.items():
+            logger.info(f"{author}: {count_commits}")
+        data = pd.DataFrame({"Author": [author for author in top_authors.keys()],
                              "Count commits": [count_commits for count_commits in top_authors.values()]})
         plt.figure(figsize=(12,16))
         plt.barh(data["Author"], data["Count commits"])

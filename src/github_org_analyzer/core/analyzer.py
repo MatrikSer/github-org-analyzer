@@ -20,10 +20,9 @@ class Analyzer:
                 author_email = "unknown"
                 if (
                     commit.get("author")
-                    and commit["author"].get("user")
-                    and commit["author"]["user"].get("email")
+                    and commit["author"].get("email")
                 ):
-                    email = commit["author"]["user"]["email"]
+                    email = commit["author"]["email"]
                     if email and email.strip():
                         author_email = email
                 self.statistics[author_email] += 1

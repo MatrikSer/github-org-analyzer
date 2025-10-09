@@ -42,7 +42,7 @@ def main():
         plt.figure(figsize=(12,16))
         plt.barh(data["Author"], data["Count commits"])
         plt.xlabel("Commits")
-        plt.title("Commits of 100 authors")
+        plt.title(f"Commits of {args.count} most active authors")
         plt.tight_layout()
         plt.show()
 
